@@ -5,7 +5,7 @@ import android.annotation.TargetApi;
 import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
+//import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.Manifest;
@@ -13,26 +13,29 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import androidx.annotation.RequiresApi;
-import androidx.core.content.ContextCompat;
+//import androidx.core.content.ContextCompat;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
 import android.view.WindowManager;
-import android.webkit.ConsoleMessage;
-import android.webkit.CookieManager;
-import android.webkit.DownloadListener;
-import android.webkit.GeolocationPermissions;
+import com.tencent.smtt.export.external.interfaces.ConsoleMessage;
+import com.tencent.smtt.sdk.CookieManager;
+import com.tencent.smtt.sdk.DownloadListener;
+import com.tencent.smtt.export.external.interfaces.GeolocationPermissionsCallback;
+import com.tencent.smtt.export.external.interfaces.IX5WebChromeClient.CustomViewCallback;
 import android.webkit.JavascriptInterface;
-import android.webkit.PermissionRequest;
+//import android.webkit.PermissionRequest;
 import android.webkit.URLUtil;
-import android.webkit.ValueCallback;
-import android.webkit.WebChromeClient;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
+
+import com.tencent.smtt.export.external.interfaces.WebResourceRequest;
+import com.tencent.smtt.sdk.ValueCallback;
+import com.tencent.smtt.sdk.WebChromeClient;
+import com.tencent.smtt.sdk.WebSettings;
+
+import com.tencent.smtt.sdk.WebView;
+import com.tencent.smtt.sdk.WebViewClient;
 import android.widget.FrameLayout;
 
 import com.facebook.react.views.scroll.ScrollEvent;
@@ -110,7 +113,6 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
   public static final int COMMAND_POST_MESSAGE = 5;
   public static final int COMMAND_INJECT_JAVASCRIPT = 6;
   public static final int COMMAND_LOAD_URL = 7;
-  public static final int COMMAND_FOCUS = 8;
   protected static final String REACT_CLASS = "RNCWebView";
   protected static final String HTML_ENCODING = "UTF-8";
   protected static final String HTML_MIME_TYPE = "text/html";
@@ -171,7 +173,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
       settings.setAllowFileAccessFromFileURLs(false);
       setAllowUniversalAccessFromFileURLs(webView, false);
     }
-    setMixedContentMode(webView, "never");
+//    setMixedContentMode(webView, "never");
 
     // Fixes broken full-screen modals/galleries due to body height being 0.
     webView.setLayoutParams(
@@ -441,18 +443,18 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     ((RNCWebView) view).setSendContentSizeChangeEvents(sendContentSizeChangeEvents);
   }
 
-  @ReactProp(name = "mixedContentMode")
-  public void setMixedContentMode(WebView view, @Nullable String mixedContentMode) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-      if (mixedContentMode == null || "never".equals(mixedContentMode)) {
-        view.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-      } else if ("always".equals(mixedContentMode)) {
-        view.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-      } else if ("compatibility".equals(mixedContentMode)) {
-        view.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-      }
-    }
-  }
+//  @ReactProp(name = "mixedContentMode")
+//  public void setMixedContentMode(WebView view, @Nullable String mixedContentMode) {
+//    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+//      if (mixedContentMode == null || "never".equals(mixedContentMode)) {
+//        view.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+//      } else if ("always".equals(mixedContentMode)) {
+//        view.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+//      } else if ("compatibility".equals(mixedContentMode)) {
+//        view.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+//      }
+//    }
+//  }
 
   @ReactProp(name = "urlPrefixesForDefaultIntent")
   public void setUrlPrefixesForDefaultIntent(
@@ -512,7 +514,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
   @Override
   public @Nullable
   Map<String, Integer> getCommandsMap() {
-    Map map = MapBuilder.of(
+    return MapBuilder.of(
       "goBack", COMMAND_GO_BACK,
       "goForward", COMMAND_GO_FORWARD,
       "reload", COMMAND_RELOAD,
@@ -521,8 +523,6 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
       "injectJavaScript", COMMAND_INJECT_JAVASCRIPT,
       "loadUrl", COMMAND_LOAD_URL
     );
-    map.put("requestFocus", COMMAND_FOCUS);
-    return map;
   }
 
   @Override
@@ -569,9 +569,6 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
           throw new RuntimeException("Arguments for loading an url are null!");
         }
         root.loadUrl(args.getString(0));
-        break;
-      case COMMAND_FOCUS:
-        root.requestFocus();
         break;
     }
   }
@@ -758,7 +755,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     protected View mWebView;
 
     protected View mVideoView;
-    protected WebChromeClient.CustomViewCallback mCustomViewCallback;
+    protected CustomViewCallback mCustomViewCallback;
 
     public RNCWebChromeClient(ReactContext reactContext, WebView webView) {
       this.mReactContext = reactContext;
@@ -775,39 +772,38 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     }
 
     // Fix WebRTC permission request error.
-    @Override
-    public void onPermissionRequest(final PermissionRequest request) {
-      String[] requestedResources = request.getResources();
-      ArrayList<String> permissions = new ArrayList<>();
-      ArrayList<String> grantedPermissions = new ArrayList<String>();
-      for (int i = 0; i < requestedResources.length; i++) {
-        if (requestedResources[i].equals(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
-          permissions.add(Manifest.permission.RECORD_AUDIO);
-        } else if (requestedResources[i].equals(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
-          permissions.add(Manifest.permission.CAMERA);
-        }
-        // TODO: RESOURCE_MIDI_SYSEX, RESOURCE_PROTECTED_MEDIA_ID.
-      }
-
-      for (int i = 0; i < permissions.size(); i++) {
-        if (ContextCompat.checkSelfPermission(mReactContext, permissions.get(i)) != PackageManager.PERMISSION_GRANTED) {
-          continue;
-        }
-        if (permissions.get(i).equals(Manifest.permission.RECORD_AUDIO)) {
-          grantedPermissions.add(PermissionRequest.RESOURCE_AUDIO_CAPTURE);
-        } else if (permissions.get(i).equals(Manifest.permission.CAMERA)) {
-          grantedPermissions.add(PermissionRequest.RESOURCE_VIDEO_CAPTURE);
-        }
-      }
-
-      if (grantedPermissions.isEmpty()) {
-        request.deny();
-      } else {
-        String[] grantedPermissionsArray = new String[grantedPermissions.size()];
-        grantedPermissionsArray = grantedPermissions.toArray(grantedPermissionsArray);
-        request.grant(grantedPermissionsArray);
-      }
-    }
+//    public void onPermissionRequest(final PermissionRequest request) {
+//      String[] requestedResources = request.getResources();
+//      ArrayList<String> permissions = new ArrayList<>();
+//      ArrayList<String> grantedPermissions = new ArrayList<String>();
+//      for (int i = 0; i < requestedResources.length; i++) {
+//        if (requestedResources[i].equals(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+//          permissions.add(Manifest.permission.RECORD_AUDIO);
+//        } else if (requestedResources[i].equals(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
+//          permissions.add(Manifest.permission.CAMERA);
+//        }
+//        // TODO: RESOURCE_MIDI_SYSEX, RESOURCE_PROTECTED_MEDIA_ID.
+//      }
+//
+//      for (int i = 0; i < permissions.size(); i++) {
+//        if (ContextCompat.checkSelfPermission(mReactContext, permissions.get(i)) != PackageManager.PERMISSION_GRANTED) {
+//          continue;
+//        }
+//        if (permissions.get(i).equals(Manifest.permission.RECORD_AUDIO)) {
+//          grantedPermissions.add(PermissionRequest.RESOURCE_AUDIO_CAPTURE);
+//        } else if (permissions.get(i).equals(Manifest.permission.CAMERA)) {
+//          grantedPermissions.add(PermissionRequest.RESOURCE_VIDEO_CAPTURE);
+//        }
+//      }
+//
+//      if (grantedPermissions.isEmpty()) {
+//        request.deny();
+//      } else {
+//        String[] grantedPermissionsArray = new String[grantedPermissions.size()];
+//        grantedPermissionsArray = grantedPermissions.toArray(grantedPermissionsArray);
+//        request.grant(grantedPermissionsArray);
+//      }
+//    }
 
     @Override
     public void onProgressChanged(WebView webView, int newProgress) {
@@ -826,7 +822,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     }
 
     @Override
-    public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+    public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissionsCallback callback) {
       callback.invoke(origin, true, false);
     }
 
@@ -838,7 +834,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
       getModule(mReactContext).startPhotoPickerIntent(filePathCallback, "");
     }
 
-    protected void openFileChooser(ValueCallback<Uri> filePathCallback, String acceptType, String capture) {
+    public void openFileChooser(ValueCallback<Uri> filePathCallback, String acceptType, String capture) {
       getModule(mReactContext).startPhotoPickerIntent(filePathCallback, acceptType);
     }
 
@@ -994,9 +990,6 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
         webView.post(new Runnable() {
           @Override
           public void run() {
-            if (mRNCWebViewClient == null) {
-              return;
-            }
             WritableMap data = mRNCWebViewClient.createWebViewEvent(webView, webView.getUrl());
             data.putString("data", message);
             dispatchEvent(webView, new TopMessageEvent(webView.getId(), data));
